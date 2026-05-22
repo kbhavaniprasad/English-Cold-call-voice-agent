@@ -1,12 +1,13 @@
 // ============================================================
 // NEXUS AI — useRetellCall Hook
-// Manages Retell AI WebSDK lifecycle, events, and call state
+// Manages Retell AI WebSDK lifecycle + auto name detection
 // ============================================================
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { RetellWebClient } from 'retell-client-js-sdk';
 import { ConnectionState, TranscriptEntry } from '../types';
 import { getAccessToken } from '../api/retell';
+import { extractNameFromTranscript } from '../utils/nameDetector';
 
 const AGENT_ID = import.meta.env.VITE_RETELL_AGENT_ID ?? '';
 
@@ -17,6 +18,7 @@ interface UseRetellCallReturn {
   isUserSpeaking: boolean;
   callStartTime: Date | null;
   error: string | null;
+  detectedUsername: string | null;
   startCall: () => Promise<void>;
   endCall: () => void;
 }
@@ -30,8 +32,8 @@ export function useRetellCall(): UseRetellCallReturn {
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detectedUsername, setDetectedUsername] = useState<string | null>(null);
 
-  // Refs for up-to-date values in event callbacks
   const connectionStateRef = useRef<ConnectionState>('idle');
   const hasRetriedRef = useRef(false);
 
@@ -40,7 +42,6 @@ export function useRetellCall(): UseRetellCallReturn {
     setConnectionState(state);
   }, []);
 
-  // Cleanup all event listeners and client
   const cleanupClient = useCallback(() => {
     if (clientRef.current) {
       try {
@@ -60,14 +61,12 @@ export function useRetellCall(): UseRetellCallReturn {
         updateConnectionState('connected');
         setError(null);
         hasRetriedRef.current = false;
-        console.log('[Retell] call_started at', now.toISOString());
       });
 
       client.on('call_ended', () => {
         updateConnectionState('ended');
         setIsAgentSpeaking(false);
         setIsUserSpeaking(false);
-        console.log('[Retell] call_ended');
       });
 
       client.on('agent_start_talking', () => {
@@ -79,7 +78,6 @@ export function useRetellCall(): UseRetellCallReturn {
         setIsAgentSpeaking(false);
       });
 
-      // Retell SDK update event carries full transcript array
       client.on('update', (update: { transcript?: Array<{ role: string; content: string }> }) => {
         if (update?.transcript && Array.isArray(update.transcript)) {
           const entries: TranscriptEntry[] = update.transcript.map((t) => ({
@@ -89,7 +87,12 @@ export function useRetellCall(): UseRetellCallReturn {
           }));
           setTranscript(entries);
 
-          // Detect user speaking from latest entry
+          // Auto-detect name from updated transcript
+          const detected = extractNameFromTranscript(entries);
+          if (detected) {
+            setDetectedUsername(detected);
+          }
+
           const lastEntry = entries[entries.length - 1];
           if (lastEntry?.role === 'user') {
             setIsUserSpeaking(true);
@@ -102,15 +105,9 @@ export function useRetellCall(): UseRetellCallReturn {
         const msg = typeof err === 'string' ? err : err?.message ?? 'Unknown error';
         console.error('[Retell] Error:', msg);
 
-        // Attempt one automatic retry on first error during connecting
-        if (
-          !hasRetriedRef.current &&
-          connectionStateRef.current === 'connecting'
-        ) {
+        if (!hasRetriedRef.current && connectionStateRef.current === 'connecting') {
           hasRetriedRef.current = true;
           updateConnectionState('connecting');
-          console.warn('[Retell] Retrying after error...');
-          // Give the SDK a moment before retrying
           await new Promise((r) => setTimeout(r, 1500));
           try {
             const token = await getAccessToken(AGENT_ID);
@@ -135,32 +132,27 @@ export function useRetellCall(): UseRetellCallReturn {
   );
 
   const startCall = useCallback(async () => {
-    // Reset state
     setTranscript([]);
     setError(null);
     setCallStartTime(null);
     setIsAgentSpeaking(false);
     setIsUserSpeaking(false);
+    setDetectedUsername(null);
     hasRetriedRef.current = false;
 
     updateConnectionState('connecting');
 
     try {
-      // Request microphone permission explicitly first
       await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError(
-        'Microphone access denied. Please allow microphone access and try again.'
-      );
+      setError('Microphone access denied. Please allow microphone access and try again.');
       updateConnectionState('error');
       return;
     }
 
     try {
       cleanupClient();
-
       const token = await getAccessToken(AGENT_ID);
-
       const client = new RetellWebClient();
       clientRef.current = client;
       attachListeners(client);
@@ -193,7 +185,6 @@ export function useRetellCall(): UseRetellCallReturn {
     cleanupClient();
   }, [cleanupClient, updateConnectionState]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       cleanupClient();
@@ -207,6 +198,7 @@ export function useRetellCall(): UseRetellCallReturn {
     isUserSpeaking,
     callStartTime,
     error,
+    detectedUsername,
     startCall,
     endCall,
   };

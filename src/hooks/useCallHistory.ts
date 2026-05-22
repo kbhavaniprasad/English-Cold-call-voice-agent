@@ -1,17 +1,18 @@
 // ============================================================
 // NEXUS AI — useCallHistory Hook
-// Manages call history state with localStorage persistence
+// Manages call history with smart name detection & title generation
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';
-import { format } from 'date-fns';
 import { CallRecord, SaveCallParams } from '../types';
+import { generateSmartTitle } from '../utils/nameDetector';
 import {
   getCallHistory,
   saveCallRecord,
   deleteCallRecord,
   generateId,
 } from '../utils/storage';
+import { format } from 'date-fns';
 
 interface UseCallHistoryReturn {
   history: CallRecord[];
@@ -21,22 +22,10 @@ interface UseCallHistoryReturn {
   searchHistory: (query: string) => CallRecord[];
 }
 
-/**
- * Generate the auto title for a call.
- * Format: "{username} call {DD-MM-YYYY} {HH:MM AM/PM}"
- * Date/time is derived from callStartTime.
- */
-function generateCallTitle(username: string, callStartTime: Date): string {
-  const dateStr = format(callStartTime, 'dd-MM-yyyy');
-  const timeStr = format(callStartTime, 'hh:mm aa').toUpperCase(); // e.g. "09:30 PM"
-  return `${username} call ${dateStr} ${timeStr}`;
-}
-
 export function useCallHistory(): UseCallHistoryReturn {
   const [history, setHistory] = useState<CallRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage on mount
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -52,14 +41,16 @@ export function useCallHistory(): UseCallHistoryReturn {
   const saveCall = useCallback((params: SaveCallParams): CallRecord => {
     const { username, callStartTime, duration, transcript, status } = params;
 
-    const title = generateCallTitle(username, callStartTime);
+    // Generate smart title — uses detected name from transcript or fallback topic
+    const title = generateSmartTitle(transcript, callStartTime, username || null);
+
     const dateStr = format(callStartTime, 'dd-MM-yyyy');
     const timeStr = format(callStartTime, 'hh:mm aa').toUpperCase();
 
     const record: CallRecord = {
       id: generateId(),
       title,
-      username,
+      username: username || 'Unknown',
       date: dateStr,
       time: timeStr,
       duration,

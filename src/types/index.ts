@@ -18,12 +18,12 @@ export interface CallRecord {
   id: string;
   title: string;
   username: string;
-  date: string;           // Formatted: "DD-MM-YYYY"
-  time: string;           // Formatted: "HH:MM AM/PM"
-  duration: string;       // Formatted: "MM:SS"
+  date: string;
+  time: string;
+  duration: string;
   transcript: TranscriptEntry[];
   status: CallStatus;
-  callStartTime: string;  // ISO string stored in localStorage
+  callStartTime: string;
 }
 
 export interface SaveCallParams {
@@ -43,12 +43,6 @@ export interface ToastMessage {
   id: string;
   type: 'error' | 'success' | 'info';
   message: string;
-}
-
-export interface UsernameModalProps {
-  isOpen: boolean;
-  onConfirm: (username: string) => void;
-  onClose: () => void;
 }
 
 export interface NavbarProps {
@@ -84,9 +78,5 @@ export interface LiveTranscriptProps {
   isAgentSpeaking: boolean;
   isUserSpeaking: boolean;
   callTitle: string;
-}
-
-export interface VoiceCallProps {
-  username: string | null;
-  onUsernameRequest: () => void;
+  detectedUsername?: string | null;
 }

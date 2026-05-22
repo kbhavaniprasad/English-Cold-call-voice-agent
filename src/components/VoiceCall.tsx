@@ -1,27 +1,23 @@
 // ============================================================
-// NEXUS AI — VoiceCall Component
-// Main call control area: orb, status text, buttons, timer, transcript
-// Receives the shared RetellWebClient hook from App.tsx
+// NEXUS AI — VoiceCall Component — Premium Light Theme
+// Main call area: no username modal, auto name detection
 // ============================================================
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, PhoneOff, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Mic, PhoneOff, Loader2, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
 import { useRetellCall } from '../hooks/useRetellCall';
 import { useCallHistory } from '../hooks/useCallHistory';
 import AIOrb from './AIOrb';
 import WaveformBar from './WaveformBar';
 import CallTimer from './CallTimer';
 import LiveTranscript from './LiveTranscript';
-import UsernameModal from './UsernameModal';
 import { ConnectionState } from '../types';
 
 type RetellHook = ReturnType<typeof useRetellCall>;
 
 interface VoiceCallProps {
   retell: RetellHook;
-  username: string | null;
-  onUsernameUpdate: (name: string) => void;
 }
 
 function getStatusText(
@@ -30,24 +26,19 @@ function getStatusText(
   isUserSpeaking: boolean
 ): string {
   switch (state) {
-    case 'idle':      return 'Ready to connect';
-    case 'connecting': return 'Connecting...';
+    case 'idle':       return 'Ready to connect';
+    case 'connecting': return 'Connecting…';
     case 'connected':
-      if (isAgentSpeaking) return 'AI Speaking...';
-      if (isUserSpeaking)  return 'Listening...';
+      if (isAgentSpeaking) return 'AI is speaking…';
+      if (isUserSpeaking)  return 'Listening to you…';
       return 'Connected · Awaiting input';
-    case 'ended':  return 'Call Ended';
-    case 'error':  return 'Connection Error';
+    case 'ended':  return 'Call ended';
+    case 'error':  return 'Connection error';
     default:       return 'Ready to connect';
   }
 }
 
-// ── Inline Toast component ────────────────────────────────
-function Toast({
-  type,
-  message,
-  onClose,
-}: {
+function Toast({ type, message, onClose }: {
   type: 'error' | 'success' | 'info';
   message: string;
   onClose: () => void;
@@ -69,18 +60,13 @@ function Toast({
         {type === 'error'   && <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />}
         {type === 'success' && <RefreshCw size={16} className="flex-shrink-0 mt-0.5" />}
         {type === 'info'    && <Mic size={16} className="flex-shrink-0 mt-0.5" />}
-        <span className="font-rajdhani text-sm">{message}</span>
+        <span className="text-sm font-medium">{message}</span>
       </div>
     </motion.div>
   );
 }
 
-// ── Main Component ────────────────────────────────────────
-const VoiceCall: React.FC<VoiceCallProps> = ({
-  retell,
-  username,
-  onUsernameUpdate,
-}) => {
+const VoiceCall: React.FC<VoiceCallProps> = ({ retell }) => {
   const {
     connectionState,
     transcript,
@@ -88,37 +74,28 @@ const VoiceCall: React.FC<VoiceCallProps> = ({
     isUserSpeaking,
     callStartTime,
     error,
+    detectedUsername,
     startCall,
     endCall,
   } = retell;
 
   const { saveCall } = useCallHistory();
 
-  // Local state
-  const [showModal, setShowModal]               = useState(false);
-  const [currentUsername, setCurrentUsername]   = useState<string | null>(username);
-  const [pendingCallStart, setPendingCallStart] = useState(false);
-  const [callDuration, setCallDuration]         = useState('00:00');
-  const [callTitle, setCallTitle]               = useState('');
-  const [toastMessages, setToastMessages]       = useState<
+  const [callDuration, setCallDuration]   = useState('00:00');
+  const [callTitle, setCallTitle]         = useState('');
+  const [toastMessages, setToastMessages] = useState<
     Array<{ id: string; type: 'error' | 'success' | 'info'; message: string }>
   >([]);
 
-  // Refs
-  const hasSavedRef     = useRef(false);
-  const prevStateRef    = useRef<ConnectionState>('idle');
+  const hasSavedRef  = useRef(false);
+  const prevStateRef = useRef<ConnectionState>('idle');
 
-  // Keep currentUsername in sync with parent
-  useEffect(() => {
-    setCurrentUsername(username);
-  }, [username]);
-
-  // Show toast for SDK errors
+  // Toast for SDK errors
   useEffect(() => {
     if (error) addToast('error', error);
   }, [error]);
 
-  // Auto-save when call transitions connected → ended
+  // Auto-save when call ends
   useEffect(() => {
     const prev = prevStateRef.current;
     prevStateRef.current = connectionState;
@@ -127,12 +104,11 @@ const VoiceCall: React.FC<VoiceCallProps> = ({
       connectionState === 'ended' &&
       prev === 'connected' &&
       !hasSavedRef.current &&
-      currentUsername &&
       callStartTime
     ) {
       hasSavedRef.current = true;
       const record = saveCall({
-        username: currentUsername,
+        username: detectedUsername ?? '',
         callStartTime,
         duration: callDuration,
         transcript,
@@ -142,56 +118,26 @@ const VoiceCall: React.FC<VoiceCallProps> = ({
       addToast('success', `Session saved: "${record.title}"`);
     }
 
-    // Reset for next call
     if (connectionState === 'connecting') {
       hasSavedRef.current = false;
       setCallTitle('');
       setCallDuration('00:00');
     }
-  }, [connectionState, currentUsername, callStartTime, callDuration, transcript, saveCall]);
+  }, [connectionState, detectedUsername, callStartTime, callDuration, transcript, saveCall]);
 
-  // ── Toast helpers ──
-  const addToast = useCallback(
-    (type: 'error' | 'success' | 'info', message: string) => {
-      const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      setToastMessages((prev) => [...prev, { id, type, message }]);
-    },
-    []
-  );
+  const addToast = useCallback((type: 'error' | 'success' | 'info', message: string) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    setToastMessages((prev) => [...prev, { id, type, message }]);
+  }, []);
 
   const removeToast = useCallback((id: string) => {
     setToastMessages((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // ── Call flow ──
-  const handleStartCallClick = useCallback(() => {
-    setPendingCallStart(true);
-    setShowModal(true);
-  }, []);
-
-  const handleUsernameConfirmed = useCallback(
-    async (name: string) => {
-      setCurrentUsername(name);
-      onUsernameUpdate(name);
-      setShowModal(false);
-      if (pendingCallStart) {
-        setPendingCallStart(false);
-        await startCall();
-      }
-    },
-    [pendingCallStart, startCall, onUsernameUpdate]
-  );
-
-  const handleModalClose = useCallback(() => {
-    setShowModal(false);
-    setPendingCallStart(false);
   }, []);
 
   const handleTimerTick = useCallback((formatted: string) => {
     setCallDuration(formatted);
   }, []);
 
-  // ── Derived state ──
   const isConnected  = connectionState === 'connected';
   const isConnecting = connectionState === 'connecting';
   const isActive     = isConnected || isConnecting;
@@ -199,198 +145,189 @@ const VoiceCall: React.FC<VoiceCallProps> = ({
 
   const statusColor = (() => {
     if (connectionState === 'error')  return 'var(--accent-red)';
-    if (connectionState === 'ended')  return 'var(--text-muted)';
-    if (isAgentSpeaking)              return 'var(--accent-cyan)';
+    if (connectionState === 'ended')  return 'var(--text-dim)';
+    if (isAgentSpeaking)              return 'var(--accent-indigo)';
     if (isUserSpeaking)               return 'var(--accent-violet)';
     if (isConnecting)                 return 'var(--accent-amber)';
-    return 'var(--text-primary)';
+    return 'var(--text-muted)';
   })();
-
-  const statusGlow =
-    isAgentSpeaking ? '0 0 12px rgba(0,245,255,0.5)' :
-    isUserSpeaking  ? '0 0 12px rgba(123,47,255,0.5)' :
-    'none';
-
-  // Stagger animation for status text
-  const letterVariants = {
-    hidden: { opacity: 0, y: 4 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: i * 0.03, duration: 0.22 },
-    }),
-  };
 
   return (
     <>
-      <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto">
-
-        {/* ── AI Orb ─────────────────────────────────── */}
+      <motion.div
+        className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        {/* ── Hero Card ─── */}
         <motion.div
-          animate={isConnecting ? { y: [0, -6, 0] } : {}}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          className="w-full rounded-3xl p-8 flex flex-col items-center gap-6"
+          style={{
+            background: 'var(--grad-hero)',
+            border: '1.5px solid var(--border-light)',
+            boxShadow: '0 4px 30px rgba(99,102,241,0.06), 0 1px 0 rgba(255,255,255,0.8) inset',
+          }}
         >
-          <AIOrb
-            connectionState={connectionState}
+          {/* Detected name badge */}
+          <AnimatePresence>
+            {detectedUsername && (
+              <motion.div
+                key={detectedUsername}
+                initial={{ opacity: 0, scale: 0.85, y: -8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: -8 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                className="name-badge"
+              >
+                <Sparkles size={11} />
+                Detected: {detectedUsername}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ── AI Orb ── */}
+          <motion.div
+            animate={isConnecting ? { y: [0, -6, 0] } : {}}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <AIOrb
+              connectionState={connectionState}
+              isAgentSpeaking={isAgentSpeaking}
+              isUserSpeaking={isUserSpeaking}
+            />
+          </motion.div>
+
+          {/* ── Status Text ── */}
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={statusText}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="text-base font-semibold text-center"
+              style={{ color: statusColor, transition: 'color 0.4s ease' }}
+            >
+              {statusText}
+            </motion.p>
+          </AnimatePresence>
+
+          {/* ── Timer ── */}
+          <CallTimer isRunning={isConnected} onTick={handleTimerTick} />
+
+          {/* ── Waveform ── */}
+          <WaveformBar
             isAgentSpeaking={isAgentSpeaking}
             isUserSpeaking={isUserSpeaking}
+            connectionState={connectionState}
           />
+
+          {/* ── Controls ── */}
+          <div className="flex items-center gap-3 flex-wrap justify-center">
+
+            {/* Start Call */}
+            <AnimatePresence mode="wait">
+              {!isActive && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.button
+                    id="start-call-btn"
+                    className="btn-primary flex items-center gap-2.5 px-8 py-3.5"
+                    onClick={startCall}
+                    disabled={isConnecting}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    {isConnecting
+                      ? <Loader2 size={18} className="animate-spin" />
+                      : <Mic size={18} />
+                    }
+                    <span>{isConnecting ? 'Connecting…' : 'Start Voice Call'}</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* End Call */}
+            <AnimatePresence>
+              {isActive && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 8 }}
+                  transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                >
+                  <motion.button
+                    id="end-call-btn"
+                    className="btn-danger flex items-center gap-2.5 px-8 py-3.5"
+                    onClick={endCall}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <PhoneOff size={18} />
+                    <span>End Call</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* New Session */}
+            <AnimatePresence>
+              {(connectionState === 'ended' || connectionState === 'error') && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.button
+                    id="new-session-btn"
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-full text-sm font-semibold transition-all duration-200"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1.5px solid var(--border-light)',
+                      color: 'var(--text-muted)',
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                    onClick={startCall}
+                    whileHover={{
+                      scale: 1.04,
+                      borderColor: 'var(--border-accent)',
+                      color: 'var(--accent-indigo)',
+                    }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <RefreshCw size={15} />
+                    <span>New Session</span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
 
-        {/* ── Status Text ────────────────────────────── */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={statusText}
-            initial="hidden"
-            animate="visible"
-            className="text-center"
-          >
-            <p
-              className="font-orbitron font-semibold text-lg tracking-widest uppercase"
-              style={{ color: statusColor, textShadow: statusGlow }}
-            >
-              {statusText.split('').map((char, i) => (
-                <motion.span
-                  key={`${statusText}-${i}`}
-                  custom={i}
-                  variants={letterVariants}
-                  initial="hidden"
-                  animate="visible"
-                  style={{ display: 'inline-block' }}
-                >
-                  {char === ' ' ? '\u00A0' : char}
-                </motion.span>
-              ))}
-            </p>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* ── Call Timer ─────────────────────────────── */}
-        <CallTimer isRunning={isConnected} onTick={handleTimerTick} />
-
-        {/* ── Waveform Bars ──────────────────────────── */}
-        <WaveformBar
-          isAgentSpeaking={isAgentSpeaking}
-          isUserSpeaking={isUserSpeaking}
-          connectionState={connectionState}
-        />
-
-        {/* ── Call Control Buttons ───────────────────── */}
-        <div className="flex items-center gap-4 flex-wrap justify-center">
-
-          {/* START CALL button (only when idle / ended / error) */}
-          <AnimatePresence mode="wait">
-            {!isActive && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.25 }}
-              >
-                <motion.button
-                  id="start-call-btn"
-                  className="btn-primary flex items-center gap-3 px-8 py-4 text-base"
-                  onClick={handleStartCallClick}
-                  disabled={isConnecting}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.96 }}
-                >
-                  {isConnecting ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Mic size={18} />
-                  )}
-                  <span>
-                    {isConnecting ? 'Connecting...' : 'Start Voice Call'}
-                  </span>
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* END CALL button (only during active call) */}
-          <AnimatePresence>
-            {isActive && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 8 }}
-                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              >
-                <motion.button
-                  id="end-call-btn"
-                  className="btn-danger flex items-center gap-3 px-8 py-4 text-base"
-                  onClick={endCall}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.96 }}
-                >
-                  <PhoneOff size={18} />
-                  <span>End Call</span>
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* NEW SESSION button (after ended/error) */}
-          <AnimatePresence>
-            {(connectionState === 'ended' || connectionState === 'error') && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.25 }}
-              >
-                <motion.button
-                  id="new-session-btn"
-                  className="flex items-center gap-2 px-6 py-4 rounded-full font-orbitron text-sm font-semibold tracking-wider transition-all duration-200"
-                  style={{
-                    background: 'rgba(0, 245, 255, 0.06)',
-                    border: '1px solid rgba(0, 245, 255, 0.2)',
-                    color: 'var(--text-muted)',
-                  }}
-                  onClick={handleStartCallClick}
-                  whileHover={{
-                    scale: 1.05,
-                    backgroundColor: 'rgba(0, 245, 255, 0.12)',
-                  }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Mic size={16} />
-                  <span>New Session</span>
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ── Live Transcript ────────────────────────── */}
+        {/* ── Live Transcript ── */}
         <div className="w-full">
           <LiveTranscript
             transcript={transcript}
             isAgentSpeaking={isAgentSpeaking}
             isUserSpeaking={isUserSpeaking}
             callTitle={callTitle}
+            detectedUsername={detectedUsername}
           />
         </div>
-      </div>
+      </motion.div>
 
-      {/* ── Username Modal ─────────────────────────────── */}
-      <UsernameModal
-        isOpen={showModal}
-        onConfirm={handleUsernameConfirmed}
-        onClose={handleModalClose}
-      />
-
-      {/* ── Toast Notification Stack ───────────────────── */}
+      {/* ── Toast Stack ── */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         <AnimatePresence>
           {toastMessages.map((t) => (
-            <Toast
-              key={t.id}
-              type={t.type}
-              message={t.message}
-              onClose={() => removeToast(t.id)}
-            />
+            <Toast key={t.id} type={t.type} message={t.message} onClose={() => removeToast(t.id)} />
           ))}
         </AnimatePresence>
       </div>

@@ -1,6 +1,6 @@
 // ============================================================
-// NEXUS AI — AIOrb Component
-// Central animated orb that visualizes the call state
+// NEXUS AI — AIOrb Component — Premium Light Theme
+// Central animated orb with soft pastel glow effects
 // ============================================================
 
 import React, { useMemo } from 'react';
@@ -13,257 +13,240 @@ interface AIOrBProps {
   isUserSpeaking: boolean;
 }
 
-const AIOrb: React.FC<AIOrBProps> = ({
-  connectionState,
-  isAgentSpeaking,
-  isUserSpeaking,
-}) => {
-  const isConnected = connectionState === 'connected';
+const AIOrb: React.FC<AIOrBProps> = ({ connectionState, isAgentSpeaking, isUserSpeaking }) => {
+  const isConnected  = connectionState === 'connected';
   const isConnecting = connectionState === 'connecting';
-  const isEnded = connectionState === 'ended';
+  const isEnded      = connectionState === 'ended';
+  const isError      = connectionState === 'error';
 
-  // Determine orb color scheme
   const orbColors = useMemo(() => {
-    if (isEnded) {
-      return {
-        primary: '#2a3a50',
-        secondary: '#1a2534',
-        glow: 'rgba(42, 58, 80, 0.4)',
-        ring1: 'rgba(42, 58, 80, 0.15)',
-        ring2: 'rgba(42, 58, 80, 0.08)',
-      };
-    }
-    if (isConnecting) {
-      return {
-        primary: '#ffb400',
-        secondary: '#ff8c00',
-        glow: 'rgba(255, 180, 0, 0.5)',
-        ring1: 'rgba(255, 180, 0, 0.2)',
-        ring2: 'rgba(255, 180, 0, 0.1)',
-      };
-    }
-    if (isUserSpeaking) {
-      return {
-        primary: '#7b2fff',
-        secondary: '#5500cc',
-        glow: 'rgba(123, 47, 255, 0.6)',
-        ring1: 'rgba(123, 47, 255, 0.25)',
-        ring2: 'rgba(123, 47, 255, 0.1)',
-      };
-    }
-    if (isAgentSpeaking) {
-      return {
-        primary: '#00f5ff',
-        secondary: '#0080ff',
-        glow: 'rgba(0, 245, 255, 0.6)',
-        ring1: 'rgba(0, 245, 255, 0.25)',
-        ring2: 'rgba(0, 245, 255, 0.1)',
-      };
-    }
-    // Idle / connected idle
-    return {
-      primary: '#00c4d4',
-      secondary: '#4040aa',
-      glow: 'rgba(0, 196, 212, 0.35)',
-      ring1: 'rgba(0, 196, 212, 0.15)',
-      ring2: 'rgba(0, 196, 212, 0.06)',
+    if (isError) return {
+      primary:   '#EF4444',
+      secondary: '#F87171',
+      glow:      'rgba(239,68,68,0.25)',
+      ring:      'rgba(239,68,68,0.12)',
+      soft:      'rgba(239,68,68,0.06)',
     };
-  }, [isEnded, isConnecting, isAgentSpeaking, isUserSpeaking]);
-
-  // Pulse rings for agent speaking
-  const agentPulseRings = [0, 1, 2, 3];
+    if (isEnded) return {
+      primary:   '#94A3B8',
+      secondary: '#CBD5E1',
+      glow:      'rgba(148,163,184,0.15)',
+      ring:      'rgba(148,163,184,0.08)',
+      soft:      'rgba(148,163,184,0.04)',
+    };
+    if (isConnecting) return {
+      primary:   '#F59E0B',
+      secondary: '#FCD34D',
+      glow:      'rgba(245,158,11,0.35)',
+      ring:      'rgba(245,158,11,0.15)',
+      soft:      'rgba(245,158,11,0.07)',
+    };
+    if (isUserSpeaking) return {
+      primary:   '#8B5CF6',
+      secondary: '#A78BFA',
+      glow:      'rgba(139,92,246,0.40)',
+      ring:      'rgba(139,92,246,0.18)',
+      soft:      'rgba(139,92,246,0.08)',
+    };
+    if (isAgentSpeaking) return {
+      primary:   '#6366F1',
+      secondary: '#818CF8',
+      glow:      'rgba(99,102,241,0.45)',
+      ring:      'rgba(99,102,241,0.20)',
+      soft:      'rgba(99,102,241,0.08)',
+    };
+    // Connected idle
+    if (isConnected) return {
+      primary:   '#6366F1',
+      secondary: '#818CF8',
+      glow:      'rgba(99,102,241,0.20)',
+      ring:      'rgba(99,102,241,0.10)',
+      soft:      'rgba(99,102,241,0.04)',
+    };
+    // Idle default
+    return {
+      primary:   '#CBD5E1',
+      secondary: '#E2E8F0',
+      glow:      'rgba(148,163,184,0.12)',
+      ring:      'rgba(148,163,184,0.06)',
+      soft:      'rgba(148,163,184,0.03)',
+    };
+  }, [isConnected, isConnecting, isAgentSpeaking, isUserSpeaking, isEnded, isError]);
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
-      {/* Outer ambient glow */}
+
+      {/* Ambient background glow */}
       <div
-        className="absolute inset-0 rounded-full transition-all duration-700"
+        className="absolute rounded-full pointer-events-none"
         style={{
-          background: `radial-gradient(circle, ${orbColors.ring2} 0%, transparent 70%)`,
-          transform: 'scale(2)',
+          width: 320,
+          height: 320,
+          background: `radial-gradient(circle, ${orbColors.soft} 0%, transparent 70%)`,
+          transition: 'background 0.8s ease',
         }}
       />
 
-      {/* Expanding pulse rings when agent is speaking */}
+      {/* Pulse rings — agent speaking */}
       <AnimatePresence>
-        {isAgentSpeaking &&
-          agentPulseRings.map((i) => (
-            <motion.div
-              key={`pulse-${i}`}
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                width: 160,
-                height: 160,
-                border: `1px solid ${orbColors.ring1}`,
-              }}
-              initial={{ scale: 0.6, opacity: 0.9 }}
-              animate={{ scale: 2.8, opacity: 0 }}
-              transition={{
-                duration: 2.2,
-                delay: i * 0.55,
-                repeat: Infinity,
-                ease: 'easeOut',
-              }}
-            />
-          ))}
+        {isAgentSpeaking && [0, 1, 2].map((i) => (
+          <motion.div
+            key={`pulse-${i}`}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 160,
+              height: 160,
+              border: `1.5px solid ${orbColors.ring}`,
+            }}
+            initial={{ scale: 0.7, opacity: 0.8 }}
+            animate={{ scale: 2.6, opacity: 0 }}
+            transition={{
+              duration: 2.0,
+              delay: i * 0.6,
+              repeat: Infinity,
+              ease: 'easeOut',
+            }}
+          />
+        ))}
       </AnimatePresence>
 
-      {/* User speaking aura */}
+      {/* Breathing ring — user speaking */}
       <AnimatePresence>
         {isUserSpeaking && (
           <motion.div
             className="absolute rounded-full pointer-events-none"
             style={{
-              width: 180,
-              height: 180,
-              background: `radial-gradient(circle, rgba(123, 47, 255, 0.2) 0%, transparent 65%)`,
-            }}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{
-              scale: [0.9, 1.15, 0.9],
-              opacity: [0.3, 0.8, 0.3],
-            }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Connecting spinner ring */}
-      <AnimatePresence>
-        {isConnecting && (
-          <motion.div
-            className="absolute rounded-full pointer-events-none"
-            style={{
               width: 190,
               height: 190,
-              border: '2px solid transparent',
-              borderTopColor: 'var(--accent-amber)',
-              borderRightColor: 'rgba(255, 180, 0, 0.4)',
+              background: `radial-gradient(circle, ${orbColors.soft} 0%, transparent 65%)`,
             }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: [0.9, 1.15, 0.9], opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.0, repeat: Infinity, ease: 'easeInOut' }}
           />
         )}
       </AnimatePresence>
 
-      {/* Second spinner ring (counter-rotating) */}
+      {/* Connecting spinner */}
       <AnimatePresence>
         {isConnecting && (
-          <motion.div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: 170,
-              height: 170,
-              border: '1px solid transparent',
-              borderBottomColor: 'rgba(255, 180, 0, 0.5)',
-              borderLeftColor: 'rgba(255, 180, 0, 0.2)',
-            }}
-            animate={{ rotate: -360 }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
-          />
+          <>
+            <motion.div
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: 196,
+                height: 196,
+                border: '2px solid transparent',
+                borderTopColor: orbColors.primary,
+                borderRightColor: orbColors.ring,
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+            />
+            <motion.div
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                width: 174,
+                height: 174,
+                border: '1.5px solid transparent',
+                borderBottomColor: orbColors.secondary,
+                borderLeftColor: orbColors.ring,
+              }}
+              animate={{ rotate: -360 }}
+              transition={{ duration: 1.7, repeat: Infinity, ease: 'linear' }}
+            />
+          </>
         )}
       </AnimatePresence>
 
-      {/* Main orb */}
+      {/* Main orb body */}
       <motion.div
         className="relative rounded-full"
         style={{ width: 160, height: 160 }}
         animate={
           isConnecting
-            ? { scale: [1, 1.04, 1], filter: ['brightness(1)', 'brightness(1.3)', 'brightness(1)'] }
+            ? { scale: [1, 1.04, 1], filter: ['brightness(1)', 'brightness(1.1)', 'brightness(1)'] }
             : isAgentSpeaking
-            ? { scale: [1, 1.06, 1, 1.04, 1], filter: ['brightness(1.1)', 'brightness(1.4)', 'brightness(1.1)'] }
+            ? { scale: [1, 1.07, 1, 1.04, 1] }
             : isUserSpeaking
             ? {}
-            : isEnded
-            ? { scale: 0.9, opacity: 0.5, filter: 'brightness(0.5) saturate(0.2)' }
-            : { scale: [1, 1.04, 1] }
+            : isEnded || isError
+            ? { scale: 0.88, opacity: 0.55 }
+            : isConnected
+            ? { scale: [1, 1.03, 1] }
+            : { scale: [1, 1.02, 1] }
         }
         transition={
-          isEnded
-            ? { duration: 1.5, ease: 'easeOut' }
+          isEnded || isError
+            ? { duration: 1.0, ease: 'easeOut' }
             : isConnecting
-            ? { duration: 0.8, repeat: Infinity, ease: 'easeInOut' }
+            ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
             : isAgentSpeaking
-            ? { duration: 0.5, repeat: Infinity, ease: 'easeInOut' }
-            : { duration: 4, repeat: Infinity, ease: 'easeInOut' }
+            ? { duration: 0.55, repeat: Infinity, ease: 'easeInOut' }
+            : { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
         }
       >
-        {/* Orb body */}
+        {/* Orb surface */}
         <div
           className="w-full h-full rounded-full"
           style={{
-            background: `radial-gradient(circle at 35% 35%, ${orbColors.primary}, ${orbColors.secondary})`,
-            boxShadow: `0 0 40px ${orbColors.glow}, 0 0 80px ${orbColors.ring1}, inset 0 0 30px rgba(255,255,255,0.06)`,
+            background: `radial-gradient(circle at 35% 30%, ${orbColors.secondary}, ${orbColors.primary} 60%, ${orbColors.primary}CC)`,
+            boxShadow: `0 0 50px ${orbColors.glow}, 0 0 100px ${orbColors.ring}, 0 8px 32px rgba(15,23,42,0.12), inset 0 2px 0 rgba(255,255,255,0.3)`,
             transition: 'background 0.7s ease, box-shadow 0.7s ease',
           }}
         >
-          {/* Inner highlight */}
+          {/* Glass highlight */}
           <div
             className="absolute rounded-full"
             style={{
-              top: '12%',
-              left: '15%',
-              width: '40%',
-              height: '35%',
+              top: '10%',
+              left: '14%',
+              width: '42%',
+              height: '36%',
+              background: 'radial-gradient(circle, rgba(255,255,255,0.45) 0%, transparent 70%)',
+              transform: 'rotate(-20deg)',
+            }}
+          />
+          {/* Secondary subtle highlight */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              bottom: '18%',
+              right: '18%',
+              width: '20%',
+              height: '16%',
               background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)',
-              transform: 'rotate(-30deg)',
             }}
           />
 
-          {/* Grid lines overlay on orb */}
-          <div
-            className="absolute inset-0 rounded-full overflow-hidden"
-            style={{ opacity: 0.12 }}
-          >
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage:
-                  'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
-                backgroundSize: '20px 20px',
-              }}
-            />
-          </div>
-
-          {/* Vibration overlay for user speaking */}
+          {/* Vibration overlay — user speaking */}
           <AnimatePresence>
             {isUserSpeaking && (
               <motion.div
                 className="absolute inset-0 rounded-full"
-                animate={{
-                  x: [0, -2, 2, -1, 1, 0],
-                  y: [0, 1, -1, 2, -2, 0],
-                }}
-                transition={{
-                  duration: 0.15,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                }}
+                animate={{ x: [0, -2, 2, -1, 1, 0], y: [0, 1, -1, 2, -2, 0] }}
+                transition={{ duration: 0.12, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
           </AnimatePresence>
         </div>
 
-        {/* Inner concentric rings */}
+        {/* Subtle border ring */}
         <div
           className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            border: `1px solid rgba(255, 255, 255, 0.08)`,
-            borderRadius: '50%',
-          }}
+          style={{ border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%' }}
         />
       </motion.div>
 
-      {/* Ended state: gray decay overlay */}
+      {/* Ended overlay */}
       <AnimatePresence>
-        {isEnded && (
+        {(isEnded || isError) && (
           <motion.div
             className="absolute inset-0 rounded-full"
-            style={{ background: 'rgba(3, 4, 10, 0.5)' }}
+            style={{ background: 'rgba(248,250,252,0.5)', borderRadius: '50%' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 1.5, ease: 'easeOut' }}
+            transition={{ duration: 1.0, ease: 'easeOut' }}
           />
         )}
       </AnimatePresence>

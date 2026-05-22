@@ -1,6 +1,5 @@
 // ============================================================
-// NEXUS AI — WaveformBar Component
-// Animated vertical waveform bars showing speaking state
+// NEXUS AI — WaveformBar — Premium Light Theme
 // ============================================================
 
 import React from 'react';
@@ -13,82 +12,48 @@ interface WaveformBarProps {
   connectionState: ConnectionState;
 }
 
-const BAR_COUNT = 7;
-
-// Different height profiles per bar to make it look natural
-const BAR_HEIGHTS = [28, 44, 56, 64, 56, 44, 28];
-const ANIMATION_DELAYS = [0, 0.1, 0.2, 0.0, 0.15, 0.05, 0.2];
-const ANIMATION_DURATIONS = [0.55, 0.6, 0.5, 0.65, 0.58, 0.52, 0.6];
+const BAR_COUNT = 9;
+const BAR_HEIGHTS = [20, 32, 44, 52, 60, 52, 44, 32, 20];
+const DELAYS     = [0, 0.08, 0.16, 0.04, 0.20, 0.12, 0.18, 0.06, 0.14];
+const DURATIONS  = [0.55, 0.62, 0.50, 0.68, 0.58, 0.54, 0.60, 0.56, 0.52];
 
 const WaveformBar: React.FC<WaveformBarProps> = ({
   isAgentSpeaking,
   isUserSpeaking,
   connectionState,
 }) => {
-  const isActive = isAgentSpeaking || isUserSpeaking;
+  const isActive     = isAgentSpeaking || isUserSpeaking;
   const isConnecting = connectionState === 'connecting';
 
-  const getBarColor = () => {
-    if (isAgentSpeaking) return 'var(--accent-cyan)';
-    if (isUserSpeaking) return 'var(--accent-violet)';
-    if (isConnecting) return 'var(--accent-amber)';
-    return 'var(--text-dim)';
-  };
-
-  const getBarGlow = () => {
-    if (isAgentSpeaking) return '0 0 8px rgba(0, 245, 255, 0.7)';
-    if (isUserSpeaking) return '0 0 8px rgba(123, 47, 255, 0.7)';
-    if (isConnecting) return '0 0 6px rgba(255, 180, 0, 0.5)';
-    return 'none';
+  const barClass = () => {
+    if (isAgentSpeaking) return 'active-indigo';
+    if (isUserSpeaking)  return 'active-violet';
+    if (isConnecting)    return 'connecting';
+    return 'idle';
   };
 
   return (
-    <div className="flex items-end justify-center gap-1.5" style={{ height: 70 }}>
+    <div className="flex items-end justify-center gap-1" style={{ height: 70 }}>
       {Array.from({ length: BAR_COUNT }).map((_, i) => {
-        const maxHeight = BAR_HEIGHTS[i];
-        const delay = ANIMATION_DELAYS[i];
-        const duration = ANIMATION_DURATIONS[i];
+        const maxH    = BAR_HEIGHTS[i];
+        const delay   = DELAYS[i];
+        const dur     = DURATIONS[i];
 
         return (
           <motion.div
             key={i}
-            style={{
-              width: 4,
-              borderRadius: 2,
-              background: getBarColor(),
-              boxShadow: getBarGlow(),
-              transformOrigin: 'bottom center',
-            }}
+            className={`waveform-bar ${barClass()}`}
+            style={{ width: 4 }}
             animate={
               isActive
-                ? {
-                    height: [
-                      maxHeight * 0.2,
-                      maxHeight,
-                      maxHeight * 0.4,
-                      maxHeight * 0.85,
-                      maxHeight * 0.2,
-                    ],
-                    opacity: [0.7, 1, 0.8, 1, 0.7],
-                  }
+                ? { height: [maxH * 0.2, maxH, maxH * 0.45, maxH * 0.85, maxH * 0.2], opacity: [0.6, 1, 0.8, 1, 0.6] }
                 : isConnecting
-                ? {
-                    height: [maxHeight * 0.15, maxHeight * 0.4, maxHeight * 0.15],
-                    opacity: [0.4, 0.7, 0.4],
-                  }
-                : {
-                    height: maxHeight * 0.12,
-                    opacity: 0.25,
-                  }
+                ? { height: [maxH * 0.15, maxH * 0.45, maxH * 0.15], opacity: [0.4, 0.75, 0.4] }
+                : { height: maxH * 0.1, opacity: 0.2 }
             }
             transition={
               isActive || isConnecting
-                ? {
-                    duration,
-                    delay,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }
+                ? { duration: dur, delay, repeat: Infinity, ease: 'easeInOut' }
                 : { duration: 0.4, ease: 'easeOut' }
             }
           />

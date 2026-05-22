@@ -1,6 +1,5 @@
 // ============================================================
-// NEXUS AI — CallTimer Component
-// Counts up from 00:00 while a call is active
+// NEXUS AI — CallTimer — Premium Light Theme
 // ============================================================
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -38,11 +37,8 @@ const CallTimer: React.FC<CallTimerProps> = ({ isRunning, onTick }) => {
         intervalRef.current = null;
       }
     }
-
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isRunning, onTick]);
 
@@ -56,21 +52,22 @@ const CallTimer: React.FC<CallTimerProps> = ({ isRunning, onTick }) => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 8, scale: 0.95 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 px-4 py-2 rounded-full"
+          style={{
+            background: isRunning ? 'rgba(99,102,241,0.07)' : 'var(--bg-surface-2)',
+            border: `1.5px solid ${isRunning ? 'rgba(99,102,241,0.2)' : 'var(--border-light)'}`,
+          }}
         >
           <Timer
             size={14}
-            style={{
-              color: isRunning ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              animation: isRunning ? 'none' : undefined,
-            }}
+            style={{ color: isRunning ? 'var(--accent-indigo)' : 'var(--text-dim)' }}
           />
           <span
-            className="font-mono text-2xl font-semibold tabular-nums tracking-widest"
+            className="font-mono text-xl font-semibold tabular-nums"
             style={{
-              color: isRunning ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              textShadow: isRunning ? '0 0 12px rgba(0, 245, 255, 0.5)' : 'none',
-              transition: 'color 0.5s ease, text-shadow 0.5s ease',
+              color: isRunning ? 'var(--accent-indigo)' : 'var(--text-muted)',
+              transition: 'color 0.4s ease',
+              letterSpacing: '0.05em',
             }}
           >
             {formatted}
